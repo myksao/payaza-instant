@@ -33,10 +33,10 @@ public class MessageRouter implements RequestHandler<APIGatewayV2WebSocketEvent,
             String action = messageJson.has("action") ? messageJson.get("action").getAsString() : "default";
 
             return switch (action) {
-                case "send" -> routeToHandler("MessageHandlerFunction", event, context);
+                case "send" -> routeToHandler("Message", event, context);
                 // Not implemented yet
-                case "typing" -> routeToHandler("TypingHandlerFunction", event, context);
-                case "heartbeat" -> routeToHandler("HeartBeatHandlerFunction", event, context);
+                case "typing" -> routeToHandler("Typing", event, context);
+                case "heartbeat" -> routeToHandler("HeartBeat", event, context);
                 default -> APIResponse.socketResponse(400, "Unknown action: " + action);
             };
         } catch (Exception e) {

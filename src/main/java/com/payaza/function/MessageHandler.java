@@ -10,7 +10,7 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.IndexOptions;
-import com.payaza.UnAuthorizedException;
+import com.payaza.exception.UnAuthorizedException;
 import com.payaza.domain.DMessage;
 import com.payaza.utils.APIResponse;
 import com.payaza.utils.Collection;

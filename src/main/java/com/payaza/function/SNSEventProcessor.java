@@ -74,6 +74,7 @@ public class SNSEventProcessor implements RequestHandler<SNSEvent, Void> {
                                     .append("ttl", user.get("ttl") == null ? 0 : user.getLong("ttl"))
                                     .append("timestamp", System.currentTimeMillis()));
                             context.getLogger().log("Message stored in transient messages collection");
+                            return;
                         }
                     }
 

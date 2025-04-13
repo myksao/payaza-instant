@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2WebSocketEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2WebSocketResponse;
 import com.mongodb.client.*;
+import com.mongodb.client.result.DeleteResult;
 import com.payaza.utils.Middleware;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -122,8 +123,6 @@ class ConnectionHandlerTest {
             setStaticField(Middleware.class, "database", mockDatabase);
             setStaticField(Middleware.class, "usersCollection", usersCollection);
             setStaticField(Middleware.class, "connectionsCollection", connectionsCollection);
-            setStaticField(Middleware.class, "transientMessagesCollection", transientMessagesCollection);
-
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -155,6 +154,8 @@ class ConnectionHandlerTest {
 
         when(connectionsCollection.find(any(Bson.class))).thenReturn(collectionmockFindIterable);
         when(collectionmockFindIterable.first()).thenReturn(null);
+
+        lenient().when(transientMessagesCollection.deleteOne(any(Document.class))).thenReturn(mock(DeleteResult.class));
 
 
         handler = new ConnectionHandler();
@@ -191,7 +192,6 @@ class ConnectionHandlerTest {
             setStaticField(Middleware.class, "database", mockDatabase);
             setStaticField(Middleware.class, "usersCollection", musersCollection);
             setStaticField(Middleware.class, "connectionsCollection", connectionsCollection);
-            setStaticField(Middleware.class, "transientMessagesCollection", transientMessagesCollection);
 
 
         } catch (Exception e) {
@@ -239,6 +239,7 @@ class ConnectionHandlerTest {
         when(mmockFindIterable.first()).thenReturn(null);
 
 
+        lenient().when(transientMessagesCollection.deleteOne(any(Document.class))).thenReturn(mock(DeleteResult.class));
 
         lenient().when(connectionsCollection.find(any(Bson.class))).thenReturn(collectionmockFindIterable);
         lenient().when(collectionmockFindIterable.first()).thenReturn(existingConnection);
@@ -302,6 +303,7 @@ class ConnectionHandlerTest {
         when(usersCollection.find(any(Bson.class))).thenReturn(mockFindIterable);
         when(mockFindIterable.first()).thenReturn(existingUser);
 
+        lenient().when(transientMessagesCollection.deleteOne(any(Document.class))).thenReturn(mock(DeleteResult.class));
 
         Document existingConnection = new Document();
         existingConnection.put("user_id", id.toHexString());

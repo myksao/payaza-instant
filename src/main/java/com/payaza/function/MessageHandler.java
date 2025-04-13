@@ -12,12 +12,14 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.IndexOptions;
 import com.payaza.exception.UnAuthorizedException;
 import com.payaza.domain.DMessage;
+import com.payaza.exception.ValidationException;
 import com.payaza.utils.APIResponse;
 import com.payaza.utils.Collection;
 import com.payaza.utils.Middleware;
 import org.bson.Document;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,9 +29,9 @@ public class MessageHandler implements RequestHandler<APIGatewayV2WebSocketEvent
     private static MongoClient mongoClient;
     private static MongoDatabase database;
     private static MongoCollection<Document> usersCollection;
-    private static MongoCollection<Document> friendCollection;
+    private static MongoCollection<Document> friendsCollection;
     private static MongoCollection<Document> messagesCollection;
-    private final SnsClient snsClient = SnsClient.create();
+    private static SnsClient snsClient;
     private final Gson gson = new Gson();
     private static final String MESSAGE_TOPIC_ARN = System.getenv("MESSAGE_TOPIC_ARN");
 
@@ -38,10 +40,11 @@ public class MessageHandler implements RequestHandler<APIGatewayV2WebSocketEvent
         mongoClient = MongoClients.create(connectionString);
         database = mongoClient.getDatabase(System.getenv("MONGODB_DATABASE"));
         usersCollection = database.getCollection(Collection.USERS_TABLE);
-        friendCollection = database.getCollection(Collection.FRIENDS_TABLE);
+        friendsCollection = database.getCollection(Collection.FRIENDS_TABLE);
         IndexOptions options = new IndexOptions().unique(true);
-        friendCollection.createIndex(new Document("user_id", 1).append("friend_id", 1), options);
+        friendsCollection.createIndex(new Document("user_id", 1).append("friend_id", 1), options);
         messagesCollection = database.getCollection(Collection.MESSAGES_TABLE);
+        snsClient = SnsClient.create();
     }
 
 
@@ -64,20 +67,20 @@ public class MessageHandler implements RequestHandler<APIGatewayV2WebSocketEvent
                 message = message.withContentType("text");
             }
             if (message.receiverId() == null) {
-                throw new UnAuthorizedException("Receiver ID is required");
+                throw new ValidationException("Receiver ID is required");
             }
             if (message.content() == null) {
-                throw new UnAuthorizedException("Message content is required");
+                throw new ValidationException("Message content is required");
             }
 
             // check if friendship exists, if not add it
-            Document friend = friendCollection.find(new Document("user_id", sender_id).append("friend_id", message.receiverId())).first();
+            Document friend = friendsCollection.find(new Document("user_id", sender_id).append("friend_id", message.receiverId())).first();
             if (friend == null) {
                 Document newFriend = new Document()
                         .append("user_id", sender_id)
                         .append("friend_id", message.receiverId())
                         .append("created_at", System.currentTimeMillis());
-                friendCollection.insertOne(newFriend);
+                friendsCollection.insertOne(newFriend);
             }
 
             // Store message if told to do so
@@ -93,6 +96,9 @@ public class MessageHandler implements RequestHandler<APIGatewayV2WebSocketEvent
         } catch (Exception e) {
             if (e instanceof UnAuthorizedException) {
                 return APIResponse.socketResponse(401, e.getMessage());
+            }
+            if (e instanceof ValidationException) {
+                return APIResponse.socketResponse(400, e.getMessage());
             }
             context.getLogger().log("Error processing message: " + e.getMessage());
             return APIResponse.socketResponse(500, "Error processing message");
@@ -111,10 +117,11 @@ public class MessageHandler implements RequestHandler<APIGatewayV2WebSocketEvent
 
     private void publishToSns(DMessage message) {
         Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-        snsClient.publish(publishRequest -> publishRequest
+        snsClient.publish(
+            PublishRequest
+                .builder()
                 .topicArn(MESSAGE_TOPIC_ARN)
-                //.messageAttributes(messageAttributes)
-                .message(gson.toJson(message))
+                .message(gson.toJson(message)).build()
         );
     }
 }

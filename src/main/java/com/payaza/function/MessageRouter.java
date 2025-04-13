@@ -15,9 +15,12 @@ import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 
 public class MessageRouter implements RequestHandler<APIGatewayV2WebSocketEvent, APIGatewayV2WebSocketResponse> {
 
-    private final LambdaClient lambdaClient = LambdaClient.create();
+    private static LambdaClient lambdaClient;
     private final Gson gson = new Gson();
 
+    static  {
+        lambdaClient = LambdaClient.create();
+    }
     @Override
     public APIGatewayV2WebSocketResponse handleRequest(APIGatewayV2WebSocketEvent event, Context context) {
         String connectionId = event.getRequestContext().getConnectionId();
@@ -51,7 +54,7 @@ public class MessageRouter implements RequestHandler<APIGatewayV2WebSocketEvent,
                     .payload(SdkBytes.fromUtf8String(gson.toJson(event)))
                     .build();
 
-            lambdaClient.invoke(invokeRequest);
+          lambdaClient.invoke(invokeRequest);
             return APIResponse.socketResponse(200, "Message routed to " + functionName);
         } catch (Exception e) {
             context.getLogger().log("Error invoking handler: " + e.getMessage());

@@ -8,6 +8,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.UpdateOptions;
 import com.payaza.utils.APIResponse;
 import com.payaza.utils.Collection;
 import com.payaza.utils.Middleware;
@@ -33,11 +34,10 @@ public class HeartBeatHandler implements RequestHandler<APIGatewayV2WebSocketEve
         String body = event.getBody();
 
         try {
-            // Process the heartbeat message here
             Middleware.socket(event, connectionId);
 
-            Document heartbeat = new Document("$set", new Document("last_heartbeat", System.currentTimeMillis()));
-            usersCollection.updateOne(new Document("user_id", connectionId), heartbeat);
+            Document heartbeat = new Document("last_heartbeat", System.currentTimeMillis());
+            usersCollection.updateOne(new Document("user_id", connectionId), heartbeat, new UpdateOptions().upsert(true));
 
             context.getLogger().log("Received heartbeat: " + body + " from connection: " + connectionId);
             return APIResponse.socketResponse(200, "Heartbeat received");

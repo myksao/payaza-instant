@@ -23,7 +23,18 @@ dependencies {
 
     implementation 'org.mongodb:mongo-java-driver:3.12.14'
     implementation 'org.mindrot:jbcrypt:0.4'
+
     implementation 'org.projectlombok:lombok:1.18.38'
+    annotationProcessor 'org.projectlombok:lombok:1.18.38'
+
+    implementation 'org.mockito:mockito-junit-jupiter:5.17.0'
+
+    testImplementation 'org.projectlombok:lombok:1.18.38'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.38'
+
+    testImplementation 'uk.org.webcompere:system-stubs-core:2.1.8'
+    testImplementation 'uk.org.webcompere:system-stubs-testng:2.1.8'
+    testImplementation 'uk.org.webcompere:system-stubs-jupiter:2.1.8'
 }
 
 test {

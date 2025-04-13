@@ -60,7 +60,6 @@ public class AuthenticateHandler  implements RequestHandler<APIGatewayProxyReque
             JsonObject requestBody = JsonParser.parseString(request.getBody()).getAsJsonObject();
             String username = requestBody.get("username").getAsString();
             String password = requestBody.get("password").getAsString();
-            String email = requestBody.get("email").getAsString();
 
             Document existingUser = usersCollection.find(Filters.eq("username", username)).first();
             if (existingUser != null) {
@@ -72,7 +71,6 @@ public class AuthenticateHandler  implements RequestHandler<APIGatewayProxyReque
             Document newUser = new Document()
                     .append("username", username)
                     .append("password", hashedPassword)
-                    .append("email", email)
                     .append("token", "")
                     .append("ttl", 0)
                     .append("last_heartbeat", System.currentTimeMillis())
@@ -114,12 +112,12 @@ public class AuthenticateHandler  implements RequestHandler<APIGatewayProxyReque
 
             String token = UUID.randomUUID().toString();
 
-            Document update = new Document("$set", new Document("token", token));
+            Document update = new Document("token", token);
 
             usersCollection.updateOne(Filters.eq("username", username), update, new UpdateOptions().upsert(true));
 
             Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("message", "Login successful");
+            responseBody.put("message", "User logged in successfully");
             responseBody.put("token", token);
             responseBody.put("user_id", user.getObjectId("_id").toString());
             return APIResponse.proxyResponse(200, gson.toJson(responseBody));

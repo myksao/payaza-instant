@@ -12,6 +12,7 @@ import org.bson.Document;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 
 public class Middleware {
@@ -23,7 +24,7 @@ public class Middleware {
 
     static {
         // Initialize MongoDB connection using environment variables
-        String connectionString = System.getenv("MONGODB_CONNECTION_STRING");
+        String connectionString = System.getenv("MONGODB_URI");
         mongoClient = MongoClients.create(connectionString);
         database = mongoClient.getDatabase(System.getenv("MONGODB_DATABASE"));
         usersCollection = database.getCollection("users");
@@ -45,7 +46,6 @@ public class Middleware {
 
     private static <T> void header(Map<String, String> header, T request, String connectionId) {
 
-
         if (header == null || !header.containsKey("Authorization")) {
             throw new UnAuthorizedException("Authorization header required");
         }
@@ -55,25 +55,31 @@ public class Middleware {
             throw new UnAuthorizedException("Invalid token");
         }
 
-        Document document = usersCollection.find(new Document("token", token)).first();
+        Document document = usersCollection.find(new Document("token", token.split("Bearer")[1])).first();
 
         if (document == null) {
             throw new UnAuthorizedException("Invalid token");
         }
 
-        Document connection = connectionsCollection.find(new Document("connection_id", connectionId)).first();
+        if (!Objects.equals(connectionId, "$connect")) {
+            Document connection = connectionsCollection.find(new Document("connection_id", connectionId)).first();
 
-        if (connection == null) {
-            throw new UnAuthorizedException("Connection not found");
+            if (connection == null) {
+                throw new UnAuthorizedException("Connection not found");
+            }
         }
 
-        Map<String, String> userData = new HashMap<>();
 
-        userData.put("user_id", document.getObjectId("_id").toString());
-        userData.put("connection_id", connectionId);
-        userData.put("email", document.getString("email"));
-        userData.put("ttl", String.valueOf(document.getLong("ttl")));
-        header.putAll(userData);
+        Map<String, String> info = new HashMap<>(header);
+        info.put("user_id", document.getObjectId("_id").toString());
+        info.put("connection_id", connectionId);
+        info.put("ttl", String.valueOf(document.getLong("ttl")));
+
+       if (request instanceof  APIGatewayProxyRequestEvent) {
+            ((APIGatewayProxyRequestEvent) request).setHeaders(info);
+        } else if (request instanceof APIGatewayV2WebSocketEvent) {
+            ((APIGatewayV2WebSocketEvent) request).setHeaders(info);
+        }
 
     }
 }

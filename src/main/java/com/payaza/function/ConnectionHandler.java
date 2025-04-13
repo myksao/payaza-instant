@@ -16,11 +16,9 @@ import com.payaza.utils.APIResponse;
 import com.payaza.utils.Collection;
 import com.payaza.utils.Middleware;
 import org.bson.Document;
-import software.amazon.awssdk.services.apigatewaymanagementapi.ApiGatewayManagementApiClient;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 
-import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -32,7 +30,7 @@ public class ConnectionHandler implements RequestHandler<APIGatewayV2WebSocketEv
     private static MongoCollection<Document> usersCollection;
     private static MongoCollection<Document> connectionsCollection;
     private static MongoCollection<Document> transientMessagesCollection;
-    private final SnsClient snsClient = SnsClient.create();
+    private static SnsClient snsClient;
     private static final String MESSAGE_TOPIC_ARN = System.getenv("MESSAGE_TOPIC_ARN");
 
     static {
@@ -44,6 +42,7 @@ public class ConnectionHandler implements RequestHandler<APIGatewayV2WebSocketEv
         IndexOptions options = new IndexOptions().unique(true);
         connectionsCollection.createIndex(new Document("user_id", 1).append("connection_id", 1), options);
         transientMessagesCollection = database.getCollection(Collection.TRANSIENT_MESSAGES_TABLE);
+        snsClient = SnsClient.create();
 
     }
 
@@ -54,14 +53,17 @@ public class ConnectionHandler implements RequestHandler<APIGatewayV2WebSocketEv
         String routeKey = event.getRequestContext().getRouteKey();
 
         try {
-            Middleware.socket(event, connectionId);
-
             switch (routeKey) {
                 case "$connect":
+                    Middleware.socket(event, "$connect");
+                    Map<String, String> header = new HashMap<>(event.getHeaders());
+                    header.put("connection_id", connectionId);
+                    event.setHeaders(header);
                     handleConnect(connectionId, event, context);
                     CompletableFuture.runAsync(() -> deliverTransientMessages(connectionId, event.getHeaders().get("username"), context));
                     break;
                 case "$disconnect":
+                    Middleware.socket(event, connectionId);
                     handleDisconnect(connectionId, context);
                     break;
                 default:
@@ -97,18 +99,16 @@ public class ConnectionHandler implements RequestHandler<APIGatewayV2WebSocketEv
 
         Document existingConnection = connectionsCollection.find(new Document("user_id", userId).append("connection_id", connectionId)).first();
         if (existingConnection != null) {
-            context.getLogger().log("User " + userId + " is already connected with connection ID: " + existingConnection.getString("connection_id"));
+            context.getLogger().log("User " + userId + " is already connected with connection ID: " + connectionId);
             throw new IllegalArgumentException("User is already connected");
         }
 
-        List<Document> document = Arrays.asList(
-                new Document("connection_id", connectionId),
-                new Document("user_id", userId),
-                new Document("connected_at", System.currentTimeMillis())
-        );
+        List<Document> document = new ArrayList<>();
+        document.add(new Document("connection_id", connectionId));
+        document.add(new Document("user_id", userId));
+        document.add(new Document("connected_at", System.currentTimeMillis()));
 
-        Document update = new Document("$set", new Document("connection_id", connectionId ));
-        update.append("$set", new Document("connected_at", System.currentTimeMillis()));
+        Document update = new Document("connection_id", connectionId ).append("connected_at", System.currentTimeMillis());
 
 
         if (event.getHeaders() != null) {
@@ -116,9 +116,9 @@ public class ConnectionHandler implements RequestHandler<APIGatewayV2WebSocketEv
             document.add(new Document("user_agent", userAgent));
 
             if (event.getHeaders().containsKey("X-Forwarded-For")) {
-                update.append("$set", new Document("ip_address", event.getHeaders().get("X-Forwarded-For")));
+                update.append("ip_address", event.getHeaders().get("X-Forwarded-For"));
                 document.add(new Document("ip_address", event.getHeaders().get("X-Forwarded-For")));
-                usersCollection.updateOne(new Document("user_id", userId), new Document("$set", new Document("ip_address", event.getHeaders().get("X-Forwarded-For"))),  new UpdateOptions().upsert(true));
+                usersCollection.updateOne(new Document("user_id", userId), new Document("ip_address", event.getHeaders().get("X-Forwarded-For")),  new UpdateOptions().upsert(true));
             }
         }
 
@@ -134,7 +134,6 @@ public class ConnectionHandler implements RequestHandler<APIGatewayV2WebSocketEv
 
         if (connection != null) {
             String userId = connection.getString("user_id");
-//            usersCollection.updateOne(new Document("user_id", userId), new Document("$unset", new Document("connection_id", "")));
             connectionsCollection.deleteOne(new Document("connection_id", connectionId));
             context.getLogger().log("User " + userId + " disconnected with connection ID: " + connectionId);
         } else {

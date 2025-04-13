@@ -23,24 +23,30 @@ The service currently supports only one-to-one messaging at the moment, and it u
 #### Architecture
 ![Instant Message Architecture](instantmsg.png)
 
-``` For One-to-One chat
-   
+
+#### MongoDB Collection
+- users
+- connections
+- messages
+- friends
+- transient_messages
+
+
+#### One-to-One chat
+```
     MongoDB Collection name - <username>.<username>
-    
 ```
 
-``` For Group chat
-
+#### For Group chat
+```
     MongoDB Collection name - <groupname>.group
-    
    Note: Transient message must have a ref-count like shared pointer in C++ or Arc in Rust.
-
 ```
 
-``` Friend List 
-        
+#### Friend List 
+
+ ```      
     MongoDB Collection name - <username>.friend 
-    
 ```
 
 
@@ -94,15 +100,12 @@ The service currently supports only one-to-one messaging at the moment, and it u
 
 #### Assumptions
 - The service is designed for one-to-one messaging only.
-- The service uses MongoDB for message storage.
-- The service uses AWS Lambda for serverless compute.
-- The service uses AWS API Gateway for API management.
-- The service uses  API Gateway WebSocket for real-time communication.
-- The service uses AWS SNS for sending messages to multiple subscribers.
+- It assumes AWS API Gateway Websocket API and REST API for API management.
+- The service uses AWS SNS for sending messages to handle event.
 - send message service makes message storage optional 
 
 #### Limitations
-- does not support group messaging.
+- no group messaging.
 - does not support message encryption.
 - does not support message delivery status. (e.g., delivered, read) 
 - does not support message search functionality.
@@ -111,11 +114,15 @@ The service currently supports only one-to-one messaging at the moment, and it u
 
 
 #### How to Run
-1. Clone the repository.
-2. Install the required dependencies.
-3. Set up the AWS services (Lambda, API Gateway, DynamoDB, S3).
-4. Configure the AWS credentials.
-5. Run the application.
-6. Connect to the WebSocket endpoint.
-7. Send and receive messages in real-time.
-8. Test the application using Postman or any other API testing tool.
+1. Build Project
+```bash
+./gradlew clean build
+```
+1. Set up the AWS services (Lambda, API Gateway, DynamoDB, S3).
+2. Create Websocket API (connect , disconnect, custom [send, heartbeat] )
+3. Create [Authentication, Connection, HeartBeat, Message, MessageRouter, SNSEventProcessor] Lambda functions.
+4. Set SNS Trigger to SNSEventProcessor Lambda function.
+4. Connect to the WebSocket endpoint.
+5. 
+5. Send and receive messages in real-time.
+6. Test the application using Postman or any other API testing tool.

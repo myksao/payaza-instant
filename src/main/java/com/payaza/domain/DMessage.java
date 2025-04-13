@@ -1,6 +1,7 @@
 package com.payaza.domain;
 
-import com.google.gson.annotations.SerializedName;
+
+import com.amazonaws.lambda.thirdparty.com.google.gson.annotations.SerializedName;
 import lombok.With;
 
 public record DMessage(

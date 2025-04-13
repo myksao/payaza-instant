@@ -160,19 +160,21 @@ public class ConnectionHandler implements RequestHandler<APIGatewayV2WebSocketEv
 
                     DMessage dm = gson.fromJson(message.toJson(), DMessage.class);
 
-                    publishToSns(dm);
+                    publishToSns(dm, message.getObjectId("_id").toHexString());
                 });
         } else {
             context.getLogger().log("No user found with connection ID: " + connectionId);
         }
     }
 
-    private void publishToSns(DMessage message) {
+    private void publishToSns(DMessage message, String transient_id) {
         Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
         snsClient.publish(publishRequest -> publishRequest
                 .topicArn(MESSAGE_TOPIC_ARN)
                 //.messageAttributes(messageAttributes)
                 .message(gson.toJson(message))
         );
+
+        transientMessagesCollection.deleteOne(new Document("_id", new Document("$oid", transient_id)));
     }
 }

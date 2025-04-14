@@ -32,24 +32,6 @@ The service currently supports only one-to-one messaging at the moment, and it u
 - transient_messages
 
 
-#### One-to-One chat
-```
-    MongoDB Collection name - <username>.<username>
-```
-
-#### For Group chat
-```
-    MongoDB Collection name - <groupname>.group
-   Note: Transient message must have a ref-count like shared pointer in C++ or Arc in Rust.
-```
-
-#### Friend List 
-
- ```      
-    MongoDB Collection name - <username>.friend 
-```
-
-
 #### Features
 - Real-time messaging using WebSocket.
 - One-to-one messaging.
